@@ -5,18 +5,13 @@ import numpy as np
 from math import sqrt
 from uncon import uncon
 
-global f_calls
-
 def quadratic(x):
     beta = 3./2.
     f = x[0]**2 + x[1]**2 - beta * x[0] * x[1]
     df = np.array([
         2 * x[0] - beta * x[1],
         2 * x[1] - beta * x[0]
-        ])
-    # global f_calls 
-    # f_calls += 1
-    
+        ])    
     return f, df
 
 def quad_helper(x):
@@ -88,17 +83,27 @@ def brachistochrone(yint):
          
     return T, dT
 
+def plot_f(x):
+    x1 = np.arange(-1,2,0.01)
+    x2 = np.arange(-1,3,0.01)
+    X1, X2 = np.meshgrid(x1,x2)
+    Z = (1-X1)**2 + 100*(X2-X1**2)**2
+    fig,axs = plt.subplots()
+    levels = np.arange(0,50,1)
+    CS = axs.contour(X1,X2,Z,levels=levels)
+    CB = fig.colorbar(CS)
+    axs.scatter(x[0],x[1],c='r')
+    axs.set_xlabel("X1")
+    axs.set_ylabel("X2")
+    plt.show()
 
 if __name__ == '__main__':
-    print("*************** QUADRATIC OPTIMIZATION ***************")
-    x0 = np.ones((2,))
-    print("Initial X0:",x0)
-    # f_calls = 0
     tau = 1e-6
-    print("--------------------")
+
+    print("*************** QUADRATIC OPTIMIZATION ***************")
     # Global minimum for quadratic should be: x* = [0,0], f(x*) = 0
+    x0 = np.ones((2,))
     xopt, fopt = uncon(quadratic,x0,tau)
-    # print("Func calls:",f_calls)
     print("MY SOLUTION:")
     print("X:",xopt)
     print("f:",fopt)
@@ -107,5 +112,19 @@ if __name__ == '__main__':
     X = minimize(quad_helper,x0)
     print("THEIR SOLUTION:")
     print(X)
-
+    
+    print()
     print("*************** ROSENBROCK OPTIMIZATION ***************")
+    # Global minimum for rosenbrock: x* = [1,...,1], f(x*)=0.0
+    # Local minimum for n>=4 rosenbrock: x = [-1,1,...,1]
+    x0 = np.zeros((2,))
+    xopt, fopt = uncon(rosenbrock,x0,tau)
+    # plot_f(xopt)
+    print("MY SOLUTION:")
+    print("X:",xopt)
+    print("f:",fopt)
+    print("--------------------")
+
+    X = minimize(rosenbrock_helper,x0)
+    print("THEIR SOLUTION:")
+    print(X)

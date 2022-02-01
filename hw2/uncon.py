@@ -21,10 +21,7 @@ def backtracking(func, x, alpha0, p):
         alpha = rho * alpha
         
         f, df = func(x + alpha * p)
-        f0, df0 = func(x)
         phi_alpha = f
-        phi_0 = f0
-        dphi_0 = df0.T @ p
 
     return alpha
 
@@ -55,9 +52,21 @@ def uncon(func, x0, tau):
     # sure you do not change the function signature for this file.  This is the
     # file I will call to test your algorithm.
     x = x0
+    # x_normalizer = np.ones_like(x)
+    # for i in range(len(x)):
+    #     xi_order = len(str(int(x[i]))) - 1
+    #     x_normalizer[i] = 1 * 10**(xi_order)
+    
     f_prev, df_prev = func(x)
+    # f_normalizer = 1.
+    # f_order = len(str(int(f_prev))) - 1
+    # f_normalizer = 1 * 10**(f_order)
+    # print(x,f_prev)
+    # print(x_normalizer,f_normalizer)
+    # print(df_prev)
+    
     p_prev = -df_prev
-    alpha = 1.0
+    alpha = 0.1
     x = x + alpha * p_prev
 
     k = 0
@@ -65,10 +74,9 @@ def uncon(func, x0, tau):
         f, df = func(x)
         if np.max(np.abs(df)) <= tau:
             break
-        
         p = conjugate_grad(df,df_prev,p_prev)
         alpha = backtracking(func, x, alpha, p)
-
+        
         x = x + alpha * p
         
         f_prev = f
