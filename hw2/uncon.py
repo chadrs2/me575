@@ -3,11 +3,11 @@ from math import sqrt
 
 def quadratic(x):
     beta = 3./2.
-    f = x[0]**2 + x[1]**2 - beta * x[0] * x[1]
-    df = np.array([
-        2 * x[0] - beta * x[1],
-        2 * x[1] - beta * x[0]
-        ])
+    f = x[0,0]**2 + x[1,0]**2 - beta * x[0,0] * x[1,0]
+    df = np.array([[
+        2 * x[0,0] - beta * x[1,0],
+        2 * x[1,0] - beta * x[0,0]
+        ]]).T
     return f, df
 
 def rosenbrock(x):
@@ -71,6 +71,33 @@ def brachistochrone(yint):
          
     return T, dT
 
+def conjugate_grad(df,df_prev,p_prev):
+    beta = (df.T @ df) / (df_prev.T @ df_prev)
+    p = - df + beta * p_prev
+    return p
+
+def backtracking(func, x, alpha0, p):
+    alpha = alpha0
+    rho = 0.5
+    mu1 = 1e-4
+
+    f, df = func(x + alpha * p)
+    f0, df0 = func(x)
+    phi_alpha = f
+    phi_0 = f0
+    dphi_0 = df0.T @ p
+    
+    while phi_alpha > phi_0 + mu1 * alpha * dphi_0:
+        alpha = rho * alpha
+        
+        f, df = func(x + alpha * p)
+        f0, df0 = func(x)
+        phi_alpha = f
+        phi_0 = f0
+        dphi_0 = df0.T @ p
+
+    return alpha
+
 def uncon(func, x0, tau):
     """An algorithm for unconstrained optimization.
 
@@ -97,6 +124,27 @@ def uncon(func, x0, tau):
     # Your code goes here!  You can (and should) call other functions, but make
     # sure you do not change the function signature for this file.  This is the
     # file I will call to test your algorithm.
-    
+    x = x0
+    f_prev, df_prev = func(x)
+    p_prev = -df_prev
+    alpha = 1.0
+    x = x + alpha * p_prev
 
+    k = 0
+    while True:
+        f, df = func(x)
+        if np.max(np.abs(df)) <= tau:
+            break
+        
+        p = conjugate_grad(df,df_prev,p_prev)
+        alpha = backtracking(func, x, alpha, p)
+
+        x = x + alpha * p
+
+        f_prev = f
+        df_prev = df
+        p_prev = p 
+    
+    xopt = x
+    fopt = f
     return xopt, fopt
