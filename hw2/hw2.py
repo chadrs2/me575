@@ -1,7 +1,8 @@
-from threading import local
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import numpy as np
+import time
+from datetime import timedelta
 from math import sqrt
 from uncon import uncon
 
@@ -103,16 +104,20 @@ def plot_f(x):
     plt.show()
 
 if __name__ == '__main__':
-    tau = 1e-6
+    tau = 1e-4
 
     print("*************** QUADRATIC OPTIMIZATION ***************")
     # Global minimum for quadratic should be: x* = [0,0], f(x*) = 0
+    t_start = time.monotonic()
     x0 = np.ones((2,))
     xopt, fopt = uncon(quadratic,x0,tau)
     print("MY SOLUTION:")
     print("fev:",quad_ctr)
     print("X:",xopt)
     print("f:",fopt)
+    quad_ctr = 0
+    t_end = time.monotonic()
+    print("Time Spent to Run Quadratic Optimization:",timedelta(seconds=t_end - t_start),"D:HH:MM.")
     print("--------------------")
 
     X = minimize(quadratic,x0,jac=True)
@@ -123,12 +128,16 @@ if __name__ == '__main__':
     print("*************** ROSENBROCK OPTIMIZATION ***************")
     # Global minimum for rosenbrock: x* = [1,...,1], f(x*)=0.0
     # Local minimum for n>=4 rosenbrock: x = [-1,1,...,1]
+    t_start = time.monotonic()
     x0 = np.zeros((2,))
     xopt, fopt = uncon(rosenbrock,x0,tau)
     print("MY SOLUTION:")
     print("fev:",rosenbrock_ctr)
     print("X:",xopt)
     print("f:",fopt)
+    rosenbrock_ctr = 0
+    t_end = time.monotonic()
+    print("Time Spent to Run Rosenbrock Optimization:",timedelta(seconds=t_end - t_start))
     print("--------------------")
 
     X = minimize(rosenbrock,x0,jac=True)
@@ -137,12 +146,16 @@ if __name__ == '__main__':
 
     print()
     print("*************** BRACHISTROCHRONE OPTIMIZATION ***************")
+    t_start = time.monotonic()
     y0 = np.zeros((58,))
     xopt, fopt = uncon(brachistochrone,y0,tau)
     print("MY SOLUTION:")
     print("fev:",brachistochrone_ctr)
     print("X:",xopt)
     print("f:",fopt)
+    brachistochrone_ctr = 0
+    t_end = time.monotonic()
+    print("Time Spent to Run Brachistochrone Optimization:",timedelta(seconds=t_end - t_start))
     print("--------------------")
 
     X = minimize(brachistochrone,y0,jac=True)

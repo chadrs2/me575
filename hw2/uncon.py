@@ -66,7 +66,8 @@ def uncon(func, x0, tau):
     # print(df_prev)
     
     p_prev = -df_prev
-    alpha = 0.1
+    alpha = 1.0#0.1
+    print("Alpha init:",alpha)
     x = x + alpha * p_prev
 
     k = 0
