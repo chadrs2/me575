@@ -5,7 +5,14 @@ import numpy as np
 from math import sqrt
 from uncon import uncon
 
+quad_ctr = 0
+rosenbrock_ctr = 0
+brachistochrone_ctr = 0
+
 def quadratic(x):
+    global quad_ctr 
+    quad_ctr += 1
+
     beta = 3./2.
     f = x[0]**2 + x[1]**2 - beta * x[0] * x[1]
     df = np.array([
@@ -14,11 +21,10 @@ def quadratic(x):
         ])    
     return f, df
 
-def quad_helper(x):
-    f, df = quadratic(x)
-    return f
-
 def rosenbrock(x):
+    global rosenbrock_ctr
+    rosenbrock_ctr += 1
+
     Sigma = 0
     for i in range(len(x)-1):
         Sigma += 100 * (x[i+1] - x[i]**2)**2 + (1 - x[i])**2
@@ -31,10 +37,6 @@ def rosenbrock(x):
         else:
             dSigma[i] = 200 * (x[i] - x[i-1]**2) - 400 * x[i] * (x[i+1] - x[i]**2) - 2 * (1 - x[i])
     return Sigma, dSigma
-
-def rosenbrock_helper(x):
-    Sigma, dSigma = rosenbrock(x)
-    return Sigma
 
 def brachistochrone(yint):
     """ brachistochrone problem.
@@ -49,6 +51,8 @@ def brachistochrone(yint):
         the wire
     dT : dT/dyint the derivatives of T w.r.t. each yint.
     """
+    global brachistochrone_ctr
+    brachistochrone_ctr += 1
      
     # friction
     mu = 0.3
@@ -83,6 +87,7 @@ def brachistochrone(yint):
          
     return T, dT
 
+
 def plot_f(x):
     x1 = np.arange(-1,2,0.01)
     x2 = np.arange(-1,3,0.01)
@@ -105,11 +110,12 @@ if __name__ == '__main__':
     x0 = np.ones((2,))
     xopt, fopt = uncon(quadratic,x0,tau)
     print("MY SOLUTION:")
+    print("fev:",quad_ctr)
     print("X:",xopt)
     print("f:",fopt)
     print("--------------------")
 
-    X = minimize(quad_helper,x0)
+    X = minimize(quadratic,x0,jac=True)
     print("THEIR SOLUTION:")
     print(X)
     
@@ -119,12 +125,26 @@ if __name__ == '__main__':
     # Local minimum for n>=4 rosenbrock: x = [-1,1,...,1]
     x0 = np.zeros((2,))
     xopt, fopt = uncon(rosenbrock,x0,tau)
-    # plot_f(xopt)
     print("MY SOLUTION:")
+    print("fev:",rosenbrock_ctr)
     print("X:",xopt)
     print("f:",fopt)
     print("--------------------")
 
-    X = minimize(rosenbrock_helper,x0)
+    X = minimize(rosenbrock,x0,jac=True)
+    print("THEIR SOLUTION:")
+    print(X)
+
+    print()
+    print("*************** BRACHISTROCHRONE OPTIMIZATION ***************")
+    y0 = np.zeros((58,))
+    xopt, fopt = uncon(brachistochrone,y0,tau)
+    print("MY SOLUTION:")
+    print("fev:",brachistochrone_ctr)
+    print("X:",xopt)
+    print("f:",fopt)
+    print("--------------------")
+
+    X = minimize(brachistochrone,y0,jac=True)
     print("THEIR SOLUTION:")
     print(X)

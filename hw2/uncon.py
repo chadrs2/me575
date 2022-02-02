@@ -83,7 +83,7 @@ def uncon(func, x0, tau):
         df_prev = df
         p_prev = p 
         k += 1
-    print("It took k =",k,"operations to converge")
+    # print("It took k =",k,"operations to converge")
     xopt = x
     fopt = f
     return xopt, fopt
