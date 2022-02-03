@@ -88,7 +88,6 @@ def brachistochrone(yint):
          
     return T, dT
 
-
 def plot_f(x):
     x1 = np.arange(-1,2,0.01)
     x2 = np.arange(-1,3,0.01)

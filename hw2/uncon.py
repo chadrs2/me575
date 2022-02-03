@@ -1,5 +1,14 @@
 import numpy as np
-from math import sqrt
+import matplotlib.pyplot as plt
+
+def plot_convergence(grad_fnorm):
+    x = np.linspace(0,len(grad_fnorm),num=len(grad_fnorm))
+    plt.figure()
+    plt.plot(x,grad_fnorm)
+    plt.xlabel("Iterations")
+    plt.ylabel(r'$||\nabla f||$')
+    plt.yscale("log")
+    plt.show()
 
 def conjugate_grad(df,df_prev,p_prev):
     beta = (df.T @ df) / (df_prev.T @ df_prev)
@@ -53,16 +62,22 @@ def uncon(func, x0, tau):
     alpha_init = 0.01
 
     k = 0
+    grad_fnorm = []
     while True:
+        grad_fnorm.append(np.max(np.abs(df)))
         if np.max(np.abs(df)) <= tau:
             break
 
         # Choose search direction
         if k == 0:
             p = -df / np.linalg.norm(df)
+            # # Choose step size
+            # alpha = backtracking(func, x, alpha_init, p)
         else:
             f, df = func(x)
             p = conjugate_grad(df,df_prev,p)
+            # # Choose step size
+            # alpha = backtracking(func, x, alpha, p)
 
         # Choose step size
         alpha = backtracking(func, x, alpha_init, p)
@@ -74,7 +89,7 @@ def uncon(func, x0, tau):
         df_prev = df
         k += 1
     
-    # print("It took k =",k,"operations to converge")
+    plot_convergence(grad_fnorm)
     xopt = x
     fopt = f
     return xopt, fopt
