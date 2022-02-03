@@ -104,7 +104,7 @@ def plot_f(x):
     plt.show()
 
 if __name__ == '__main__':
-    tau = 1e-4
+    tau = 1e-6
 
     print("*************** QUADRATIC OPTIMIZATION ***************")
     # Global minimum for quadratic should be: x* = [0,0], f(x*) = 0

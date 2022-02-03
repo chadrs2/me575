@@ -47,43 +47,33 @@ def uncon(func, x0, tau):
     fopt : float
         the corresponding function value
     """
-
-    # Your code goes here!  You can (and should) call other functions, but make
-    # sure you do not change the function signature for this file.  This is the
-    # file I will call to test your algorithm.
     x = x0
-    # x_normalizer = np.ones_like(x)
-    # for i in range(len(x)):
-    #     xi_order = len(str(int(x[i]))) - 1
-    #     x_normalizer[i] = 1 * 10**(xi_order)
     
-    f_prev, df_prev = func(x)
-    # f_normalizer = 1.
-    # f_order = len(str(int(f_prev))) - 1
-    # f_normalizer = 1 * 10**(f_order)
-    # print(x,f_prev)
-    # print(x_normalizer,f_normalizer)
-    # print(df_prev)
-    
-    p_prev = -df_prev
-    alpha = 1.0#0.1
-    print("Alpha init:",alpha)
-    x = x + alpha * p_prev
+    f, df = func(x)
+    alpha_init = 0.01
 
     k = 0
     while True:
-        f, df = func(x)
         if np.max(np.abs(df)) <= tau:
             break
-        p = conjugate_grad(df,df_prev,p_prev)
-        alpha = backtracking(func, x, alpha, p)
-        
+
+        # Choose search direction
+        if k == 0:
+            p = -df / np.linalg.norm(df)
+        else:
+            f, df = func(x)
+            p = conjugate_grad(df,df_prev,p)
+
+        # Choose step size
+        alpha = backtracking(func, x, alpha_init, p)
+
+        # Step along conjugate gradient
         x = x + alpha * p
         
-        f_prev = f
+        # Update values
         df_prev = df
-        p_prev = p 
         k += 1
+    
     # print("It took k =",k,"operations to converge")
     xopt = x
     fopt = f
