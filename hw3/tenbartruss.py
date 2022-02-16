@@ -200,24 +200,36 @@ def complexStep_dsdA(x,h):
     return np.array(dsdA)
 
 # IMPLICIT ANALYTIC
-# def implicitAnalytic_dmdA(func,x):
+# def implicitAnalytic_dmdA(x):
+
     
 
-def implicitAnalytic_dsdA(func,x):
-    m, s, K, S, d = func(x) 
+def implicitAnalytic_dsdA(x):
+    m, s, K, S, d = truss(x) 
     pspd = np.real(S)
+    print(np.size(S,0),np.size(S,1))
     pspA = np.zeros_like(S)
     prpd = -np.real(K)
-    pKpA = getK(x+1e-30*1j).imag / 1e-30
-    prpA = - pKpA * d
+    # Do Complex Step to get partial of K with respect to A:
+    pKpA = np.zeros_like(getK(x))
+    for i in range(len(x)):
+        x_imag = np.array(x,dtype=complex)
+        x_imag[i] += 1e-30*1j
+        pKpA_i = getK(x_imag).imag / 1e-30
+        print(pKpA_i)
+        pKpA += pKpA_i
+    
+    prpA = - pKpA @ d
 
-    return pspA - pspd @ np.linalg.inv(prpd) @ prpA
+    return np.real(pspA - pspd @ np.linalg.inv(prpd) @ prpA)
 
 
 if __name__ == '__main__':
     A0 = np.ones((10,))*0.5
-    print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
-    print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
+    # print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
+    # print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
     
-    print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
-    print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
+    # print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
+    # print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
+
+    print("Implicit Analytic - dsdA:",implicitAnalytic_dsdA(A0))
