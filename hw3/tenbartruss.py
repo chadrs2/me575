@@ -80,7 +80,7 @@ def truss(A):
     # compute stress
     stress = np.dot(S, d).reshape(nbar)
 
-    return mass, stress, K, S, d
+    return mass, stress, K, S, d, rho, L
 
 
 
@@ -119,7 +119,6 @@ def bar(E, A, L, phi):
     return K, S
 
 
-
 def node2idx(node, DOF):
     """Computes the appropriate indices in the global matrix for
     the corresponding node numbers.  You pass in the number of the node
@@ -140,20 +139,8 @@ def node2idx(node, DOF):
 
     return idx
 
-# Derivative helper functions:
-def getMass(A):
-    mass, stress, K, S, d = truss(A)
-    return mass
 
-def getStress(A):
-    mass, stress, K, S, d = truss(A)
-    return stress
-
-def getK(A):
-    mass, stress, K, S, d = truss(A)
-    return K
-
-# FINITE DIFFERENCING
+# FINITE DIFFERENCING - Note: mass, stress, K, S, d, rho, L = truss(x)
 def centralDiff_dmdA(x,h):
     dmdA = []
     for i in range(len(x)):
@@ -161,8 +148,8 @@ def centralDiff_dmdA(x,h):
         x_back[i] -= h
         x_forward = x.copy()
         x_forward[i] += h
-        f_back = getMass(x_back)
-        f_forward = getMass(x_forward)
+        f_back = truss(x_back)[0]
+        f_forward = truss(x_forward)[0]
         dfdx = (f_forward - f_back) / (2*h)
         dmdA.append(np.real(dfdx))
     return np.array(dmdA)
@@ -174,19 +161,19 @@ def centralDiff_dsdA(x,h):
         x_back[i] -= h
         x_forward = x.copy()
         x_forward[i] += h
-        g_back = getStress(x_back)
-        g_forward = getStress(x_forward)
+        g_back = truss(x_back)[1]
+        g_forward = truss(x_forward)[1]
         dgdx = (g_forward - g_back) / (2*h)
         dsdA.append(np.real(dgdx))
     return np.array(dsdA)
 
-# COMPLEX STEP
+# COMPLEX STEP - Note: mass, stress, K, S, d, rho, L = truss(x)
 def complexStep_dmdA(x,h):
     dmdA = []
     for i in range(len(x)):
         x_imag = np.array(x,dtype=complex)
         x_imag[i] += h*1j
-        dfdx_imag = getMass(x_imag).imag / h
+        dfdx_imag = truss(x_imag)[0].imag / h
         dmdA.append(dfdx_imag)
     return np.array(dmdA)
 
@@ -195,41 +182,39 @@ def complexStep_dsdA(x,h):
     for i in range(len(x)):
         x_imag = np.array(x,dtype=complex)
         x_imag[i] += h*1j
-        dgdx_imag = getStress(x_imag).imag / h
+        dgdx_imag = truss(x_imag)[1].imag / h
         dsdA.append(dgdx_imag)
     return np.array(dsdA)
 
-# IMPLICIT ANALYTIC
-# def implicitAnalytic_dmdA(x):
-
+# IMPLICIT ANALYTIC - Note: mass, stress, K, S, d, rho, L = truss(x)
+def implicitAnalytic_dmdA(x):
+    rho, L = truss(x)[5:]
+    dmdA = rho * L
+    return np.array(dmdA)
     
-
-def implicitAnalytic_dsdA(x):
-    m, s, K, S, d = truss(x) 
+def implicitAnalytic_dsdA(x):    
+    m, s, K, S, d, _, _ = truss(x) 
     pspd = np.real(S)
-    print(np.size(S,0),np.size(S,1))
-    pspA = np.zeros_like(S)
-    prpd = -np.real(K)
-    # Do Complex Step to get partial of K with respect to A:
-    pKpA = np.zeros_like(getK(x))
+    prpd = np.real(K)
+    dsdA = np.zeros((np.size(s,0),np.size(s,0)))
     for i in range(len(x)):
         x_imag = np.array(x,dtype=complex)
         x_imag[i] += 1e-30*1j
-        pKpA_i = getK(x_imag).imag / 1e-30
-        print(pKpA_i)
-        pKpA += pKpA_i
-    
-    prpA = - pKpA @ d
-
-    return np.real(pspA - pspd @ np.linalg.inv(prpd) @ prpA)
+        pKpA = truss(x_imag)[2].imag / 1e-30
+        prpA = pKpA @ d
+        dsdA[i,:] = np.real(- pspd @ np.linalg.inv(prpd) @ prpA).T
+    return dsdA
 
 
 if __name__ == '__main__':
     A0 = np.ones((10,))*0.5
-    # print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
-    # print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
+    print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
+    print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
     
-    # print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
-    # print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
+    print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
+    print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
 
+    print("Implicit Analytic - dmdA:",implicitAnalytic_dmdA(A0))
     print("Implicit Analytic - dsdA:",implicitAnalytic_dsdA(A0))
+
+    
