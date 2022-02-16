@@ -1,6 +1,9 @@
 import numpy as np
+from scipy.optimize import minimize, Bounds
+import matplotlib.pyplot as plt
 from math import sin, cos, sqrt, pi
 import cmath
+import time
 
 def truss(A):
     """Computes mass and stress for the 10-bar truss problem
@@ -82,8 +85,6 @@ def truss(A):
 
     return mass, stress, K, S, d, rho, L
 
-
-
 def bar(E, A, L, phi):
     """Computes the stiffness and stress matrix for one element
     Parameters
@@ -117,7 +118,6 @@ def bar(E, A, L, phi):
     S = E/L*np.array([-c, -s, c, s])
 
     return K, S
-
 
 def node2idx(node, DOF):
     """Computes the appropriate indices in the global matrix for
@@ -206,15 +206,105 @@ def implicitAnalytic_dsdA(x):
     return dsdA
 
 
-if __name__ == '__main__':
+# Optimization Implementation
+def runoptimization(stress_maxes, min_areas):
+    # Track time lapsed per iteration and how much truss mass has changed
+    tstart = time.time()
+    t = []
+    masses = []
+
+    def objcon(A):
+        nonlocal tstart, t, masses
+        mass, stress = truss(A)[0:2]
+        mass = np.real(mass)
+        stress = np.real(stress)
+        f = mass
+        g = stress_maxes - stress # stress less than max yield stress
+        g = np.append(g, stress + stress_maxes) # stress greater than negative max yield stress
+        t.append(time.time()-tstart)
+        masses.append(f)
+        return f, g
+    
+    Alast = []
+    flast = []
+    glast = []
+
+    def obj(A):
+        nonlocal Alast, flast, glast
+        if not np.array_equal(A, Alast):
+            flast, glast = objcon(A)
+            Alast = A
+        return flast
+
+    def con(A):
+        nonlocal Alast, flast, glast
+        if not np.array_equal(A, Alast):
+            flast, glast = objcon(A)
+            Alast = A
+        return glast
+
+    # Initialize cross-section areas
+    # A0 = np.array([8,0.1,8,4,0.1,0.1,6,6,4,0.1])
     A0 = np.ones((10,))*0.5
-    print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
-    print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
-    
-    print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
-    print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
 
-    print("Implicit Analytic - dmdA:",implicitAnalytic_dmdA(A0))
-    print("Implicit Analytic - dsdA:",implicitAnalytic_dsdA(A0))
-
+    # Set bounds and constraints
+    lb = min_areas
+    ub = np.ones_like(min_areas)*np.inf
+    bounds = Bounds(lb,ub,keep_feasible=True)
+    constraints = {'type': 'ineq', 'fun': con}
     
+    # Run optimization algorithm
+    res = minimize(obj, A0, constraints=constraints, bounds=bounds, jac=implicitAnalytic_dmdA)
+    print("A =",res.x,"in^2")
+    print("f =",res.fun,"lbs")
+    print(res)
+
+    return res.x, res.fun, t, masses
+
+def plot_convergence(grad_fnorm):
+    x = np.linspace(0,len(grad_fnorm),num=len(grad_fnorm))
+    plt.figure()
+    plt.plot(x,grad_fnorm)
+    plt.xlabel("Iterations")
+    plt.ylabel(r'$||\nabla f||$')
+    plt.yscale("log")
+    plt.show()
+
+
+if __name__ == '__main__':
+    ## Test Derivative Functions ##
+    A0 = np.ones((10,))*0.5
+    # print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
+    # print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
+    # print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
+    # print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
+    # print("Implicit Analytic - dmdA:",implicitAnalytic_dmdA(A0))
+    # print("Implicit Analytic - dsdA:",implicitAnalytic_dsdA(A0))
+
+    print("Central Difference dmdA Mean Squared Error:",\
+        (np.square(implicitAnalytic_dmdA(A0) - centralDiff_dmdA(A0,1e-8))).mean(axis=0))
+    print("Central Difference dsdA Mean Squared Error:",\
+        (np.square(implicitAnalytic_dsdA(A0) - centralDiff_dsdA(A0,1e-8))).mean(axis=None))
+    print("Complex Step Difference dmdA Mean Squared Error:",\
+        (np.square(implicitAnalytic_dmdA(A0) - complexStep_dmdA(A0,1e-30))).mean(axis=0))
+    print("Complex Step Difference dsdA Mean Squared Error:",\
+        (np.square(implicitAnalytic_dsdA(A0) - complexStep_dsdA(A0,1e-30))).mean(axis=None))
+
+
+    ## Run Optimization ##
+    # Set lower bound for cross-sectional area
+    min_areas = np.ones((10,))*0.1
+
+    # Set max yield stresses for beams
+    stress_maxes = np.ones((10,))*25*10**3
+    stress_maxes[8] = 75*10**3
+
+    xstar, fstar, t, masses = runoptimization(stress_maxes, min_areas)
+
+    # Plot change in truss mass over time as optimizer converged
+    plt.figure()
+    plt.plot(t,masses)
+    plt.title("Truss Optimization Results")
+    plt.xlabel("t (s)")
+    plt.ylabel("Mass (lbs)")
+    plt.show()
