@@ -1,5 +1,6 @@
 import numpy as np
 from math import sin, cos, sqrt, pi
+import cmath
 
 def truss(A):
     """Computes mass and stress for the 10-bar truss problem
@@ -39,11 +40,11 @@ def truss(A):
     DOF = 2  # number of degrees of freedom
 
     # mass
-    mass = np.sum(rho*A*L)
+    mass = np.sum(rho*A*L,dtype=complex)
 
     # stiffness and stress matrices
-    K = np.zeros((DOF*n, DOF*n))
-    S = np.zeros((nbar, DOF*n))
+    K = np.zeros((DOF*n, DOF*n), dtype=complex)
+    S = np.zeros((nbar, DOF*n), dtype=complex)
 
     for i in range(nbar):  # loop through each bar
 
@@ -79,7 +80,7 @@ def truss(A):
     # compute stress
     stress = np.dot(S, d).reshape(nbar)
 
-    return mass, stress
+    return mass, stress, K, S, d
 
 
 
@@ -138,3 +139,85 @@ def node2idx(node, DOF):
         idx = np.concatenate((idx, np.arange(start, finish, dtype=int)))
 
     return idx
+
+# Derivative helper functions:
+def getMass(A):
+    mass, stress, K, S, d = truss(A)
+    return mass
+
+def getStress(A):
+    mass, stress, K, S, d = truss(A)
+    return stress
+
+def getK(A):
+    mass, stress, K, S, d = truss(A)
+    return K
+
+# FINITE DIFFERENCING
+def centralDiff_dmdA(x,h):
+    dmdA = []
+    for i in range(len(x)):
+        x_back = x.copy()
+        x_back[i] -= h
+        x_forward = x.copy()
+        x_forward[i] += h
+        f_back = getMass(x_back)
+        f_forward = getMass(x_forward)
+        dfdx = (f_forward - f_back) / (2*h)
+        dmdA.append(np.real(dfdx))
+    return np.array(dmdA)
+
+def centralDiff_dsdA(x,h):
+    dsdA = []
+    for i in range(len(x)):
+        x_back = x.copy()
+        x_back[i] -= h
+        x_forward = x.copy()
+        x_forward[i] += h
+        g_back = getStress(x_back)
+        g_forward = getStress(x_forward)
+        dgdx = (g_forward - g_back) / (2*h)
+        dsdA.append(np.real(dgdx))
+    return np.array(dsdA)
+
+# COMPLEX STEP
+def complexStep_dmdA(x,h):
+    dmdA = []
+    for i in range(len(x)):
+        x_imag = np.array(x,dtype=complex)
+        x_imag[i] += h*1j
+        dfdx_imag = getMass(x_imag).imag / h
+        dmdA.append(dfdx_imag)
+    return np.array(dmdA)
+
+def complexStep_dsdA(x,h):
+    dsdA = []
+    for i in range(len(x)):
+        x_imag = np.array(x,dtype=complex)
+        x_imag[i] += h*1j
+        dgdx_imag = getStress(x_imag).imag / h
+        dsdA.append(dgdx_imag)
+    return np.array(dsdA)
+
+# IMPLICIT ANALYTIC
+# def implicitAnalytic_dmdA(func,x):
+    
+
+def implicitAnalytic_dsdA(func,x):
+    m, s, K, S, d = func(x) 
+    pspd = np.real(S)
+    pspA = np.zeros_like(S)
+    prpd = -np.real(K)
+    pKpA = getK(x+1e-30*1j).imag / 1e-30
+    prpA = - pKpA * d
+
+    return pspA - pspd @ np.linalg.inv(prpd) @ prpA
+
+
+if __name__ == '__main__':
+    A0 = np.ones((10,))*0.5
+    print("Central Diff - dmdA:",centralDiff_dmdA(A0,1e-8))
+    print("Central Diff - dsdA:",centralDiff_dsdA(A0,1e-8))
+    
+    print("Complex Step - dmdA:",complexStep_dmdA(A0,1e-30))
+    print("Complex Step - dsdA:",complexStep_dsdA(A0,1e-30))
