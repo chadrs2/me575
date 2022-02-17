@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import minimize, Bounds
+from scipy.optimize import minimize, Bounds, NonlinearConstraint
 import matplotlib.pyplot as plt
 from math import sin, cos, sqrt, pi
 import cmath
@@ -205,7 +205,6 @@ def implicitAnalytic_dsdA(x):
         dsdA[i,:] = np.real(- pspd @ np.linalg.inv(prpd) @ prpA).T
     return dsdA
 
-
 # Optimization Implementation
 def runoptimization(stress_maxes, min_areas):
     # Track time lapsed per iteration and how much truss mass has changed
@@ -221,27 +220,39 @@ def runoptimization(stress_maxes, min_areas):
         f = mass
         g = stress_maxes - stress # stress less than max yield stress
         g = np.append(g, stress + stress_maxes) # stress greater than negative max yield stress
+        df = implicitAnalytic_dmdA(A)
+        dg = implicitAnalytic_dsdA(A)
         t.append(time.time()-tstart)
         masses.append(f)
-        return f, g
+        return f, g, df, dg
     
     Alast = []
     flast = []
+    dflast = []
     glast = []
+    dglast = []
 
     def obj(A):
-        nonlocal Alast, flast, glast
+        nonlocal Alast, flast, dflast, glast, dglast
         if not np.array_equal(A, Alast):
-            flast, glast = objcon(A)
+            flast, glast, dflast, dglast = objcon(A)
             Alast = A
-        return flast
+        return flast, dflast
 
     def con(A):
-        nonlocal Alast, flast, glast
+        nonlocal Alast, flast, dflast, glast, dglast
         if not np.array_equal(A, Alast):
-            flast, glast = objcon(A)
+            flast, glast, dflast, dglast = objcon(A)
             Alast = A
         return glast
+
+    def conjac(A):
+        nonlocal Alast, flast, dflast, glast, dglast
+        if not np.array_equal(A, Alast):
+            flast, glast, dflast, dglast = objcon(A)
+            Alast = A
+        return dglast
+
 
     # Initialize cross-section areas
     # A0 = np.array([8,0.1,8,4,0.1,0.1,6,6,4,0.1])
@@ -251,24 +262,17 @@ def runoptimization(stress_maxes, min_areas):
     lb = min_areas
     ub = np.ones_like(min_areas)*np.inf
     bounds = Bounds(lb,ub,keep_feasible=True)
-    constraints = {'type': 'ineq', 'fun': con}
-    
+    lg = -np.inf
+    ug = 0.0
+    # constraints = {'type': 'ineq', 'fun': con}
+    constraints = NonlinearConstraint(con,lg,ug,jac=conjac)
+
     # Run optimization algorithm
-    res = minimize(obj, A0, constraints=constraints, bounds=bounds, jac=implicitAnalytic_dmdA)
+    res = minimize(obj, A0, constraints=constraints, bounds=bounds, jac=True)
     print("A =",res.x,"in^2")
     print("f =",res.fun,"lbs")
     print(res)
-
     return res.x, res.fun, t, masses
-
-def plot_convergence(grad_fnorm):
-    x = np.linspace(0,len(grad_fnorm),num=len(grad_fnorm))
-    plt.figure()
-    plt.plot(x,grad_fnorm)
-    plt.xlabel("Iterations")
-    plt.ylabel(r'$||\nabla f||$')
-    plt.yscale("log")
-    plt.show()
 
 
 if __name__ == '__main__':
