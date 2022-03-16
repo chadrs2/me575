@@ -24,7 +24,7 @@ def obst_con(X,centers,r,n):
     constraint = []
     for i in range(np.size(X,0)):
         for c in  centers:
-            constraint.append(r-np.linalg.norm(X[i,:]-c))
+            constraint.append(r-np.linalg.norm(X[i,:]-c)+np.random.normal(0,0.1))
     return np.array(constraint)
 
 def obj_penalty(X,*args):
@@ -49,10 +49,16 @@ if __name__ == '__main__':
     xf = np.array([10,10])
     x0 = np.array([0,0])
     step_size = 0.5
-    centers = [np.array([4,3.5]),
-                np.array([8.5,8]),
-                np.array([6,7.5])]
+    # centers = [np.array([4,3.5]),
+    #             np.array([8.5,8]),
+    #             np.array([6,7.5])]
     r = 1.
+    max_size = 10
+    num_circles = 6
+    max_rad = 2
+    min_rad = 0.5
+    centers = np.around(np.random.uniform(2,max_size-max_rad, (num_circles,2)), 1)
+    # r = np.around(np.random.uniform(min_rad, max_rad, num_circles),1)
     
     # Quadratic Penalty Method Variables
     n = np.size(X,0)
@@ -72,7 +78,7 @@ if __name__ == '__main__':
         X = X.reshape(n*2,)
         while np.min(mu) < epsilon:
             args = [n,x0,xf,step_size,centers,r,mu]
-            x = minimize(obj_penalty,X,args=args)
+            x = minimize(obj_penalty,X,args=args,method='Nelder-Mead',tol=1e-1)
             mu = rho * mu # mu gets larger each time
             X = x.x
             itr += x.nit
@@ -92,13 +98,27 @@ if __name__ == '__main__':
 
         # Update variables (i.e. move along path)
         x0 = X[0,:]
-    
+
     fig, axs = plt.subplots()
+    # for i in range(len(centers)):
+    #     if i == 0:
+    #         circle_i = plt.Circle(centers[i],radius=r,color='r',fill=True,label="Obstacle(s)")
+    #     else:
+    #         circle_i = plt.Circle(centers[i],radius=r,color='r',fill=True)
+    #     axs.add_patch(circle_i)
     for i in range(len(centers)):
         if i == 0:
-            circle_i = plt.Circle(centers[i],radius=r,color='r',fill=True,label="Obstacle(s)")
+            circle_i = plt.Circle(centers[i],radius=r,color='r',fill=False,label="Boundary")
         else:
-            circle_i = plt.Circle(centers[i],radius=r,color='r',fill=True)
+            circle_i = plt.Circle(centers[i],radius=r,color='r',fill=False)
+        axs.add_patch(circle_i)
+    
+    for i in range(len(centers)):
+        r1 = (1-0.341)*r
+        if i == 0:
+            circle_i = plt.Circle(centers[i],radius=r1,color='b',fill=True,label="True Obstacle(s)")
+        else:
+            circle_i = plt.Circle(centers[i],radius=r1,color='b',fill=True)
         axs.add_patch(circle_i)
     axs.plot(path[:,0],path[:,1],'g+',label="Path")
     axs.plot(0,0,'r*',label="Starting Position")
