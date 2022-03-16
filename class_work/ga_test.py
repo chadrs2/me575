@@ -34,3 +34,9 @@ varbound=np.array([[lb,ub]]*ndim)
 model=ga(function=rosenbrock,dimension=ndim,variable_type='real',variable_boundaries=varbound)
 
 model.run()
+convergence = model.report
+solution = model.output_dict
+# print(convergence)
+print(solution)
+print(solution["variable"])
+print(solution["function"])
