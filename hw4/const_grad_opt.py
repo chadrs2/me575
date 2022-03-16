@@ -49,16 +49,10 @@ if __name__ == '__main__':
     xf = np.array([10,10])
     x0 = np.array([0,0])
     step_size = 0.5
-    # centers = [np.array([4,3.5]),
-    #             np.array([8.5,8]),
-    #             np.array([6,7.5])]
+    centers = [np.array([4,3.5]),
+                np.array([8.5,8]),
+                np.array([6,7.5])]
     r = 1.
-    max_size = 10
-    num_circles = 6
-    max_rad = 2
-    min_rad = 0.5
-    centers = np.around(np.random.uniform(2,max_size-max_rad, (num_circles,2)), 1)
-    # r = np.around(np.random.uniform(min_rad, max_rad, num_circles),1)
     
     # Quadratic Penalty Method Variables
     n = np.size(X,0)
@@ -78,7 +72,7 @@ if __name__ == '__main__':
         X = X.reshape(n*2,)
         while np.min(mu) < epsilon:
             args = [n,x0,xf,step_size,centers,r,mu]
-            x = minimize(obj_penalty,X,args=args,method='Nelder-Mead',tol=1e-1)
+            x = minimize(obj_penalty,X,args=args)
             mu = rho * mu # mu gets larger each time
             X = x.x
             itr += x.nit
