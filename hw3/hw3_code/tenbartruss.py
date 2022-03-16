@@ -272,7 +272,6 @@ def runoptimization(stress_maxes, min_areas):
     res = minimize(obj, A0, constraints=constraints, bounds=bounds, jac=True)#, method='trust-constr')
     print("A =",res.x,"in^2")
     print("f =",res.fun,"lbs")
-
     print(res)
     return res.x, res.fun, t, masses
 
