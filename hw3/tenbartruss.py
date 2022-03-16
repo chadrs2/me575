@@ -257,18 +257,18 @@ def runoptimization(stress_maxes, min_areas):
     res = minimize(obj, A0, constraints=constraints, bounds=bounds, jac=implicitAnalytic_dmdA)
     print("A =",res.x,"in^2")
     print("f =",res.fun,"lbs")
-    print(res)
+    print(res.optimality)
 
     return res.x, res.fun, t, masses
 
-def plot_convergence(grad_fnorm):
-    x = np.linspace(0,len(grad_fnorm),num=len(grad_fnorm))
-    plt.figure()
-    plt.plot(x,grad_fnorm)
-    plt.xlabel("Iterations")
-    plt.ylabel(r'$||\nabla f||$')
-    plt.yscale("log")
-    plt.show()
+# def plot_convergence(grad_fnorm):
+#     x = np.linspace(0,len(grad_fnorm),num=len(grad_fnorm))
+#     plt.figure()
+#     plt.plot(x,grad_fnorm)
+#     plt.xlabel("Iterations")
+#     plt.ylabel(r'$||\nabla f||$')
+#     plt.yscale("log")
+#     plt.show()
 
 
 if __name__ == '__main__':
