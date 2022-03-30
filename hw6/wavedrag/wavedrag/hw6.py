@@ -1,80 +1,79 @@
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, Bounds
 from wavedrag import wavedrag
 
-'''
-#data:
-f = np.array([7.7859, 5.9142, 5.3145, 5.4135, 1.9367, 2.1692, 0.9295, 1.8957, -0.4215, 0.8553, 1.7963, 3.0314, 4.4279, 4.1884, 4.0957, 6.5956, 8.2930, 13.9876, 13.5700, 17.7481])
-x = np.array([-2.0000, -1.7895, -1.5789, -1.3684, -1.1579, -0.9474, -0.7368, -0.5263, -0.3158, -0.1053, 0.1053, 0.3158, 0.5263, 0.7368, 0.9474, 1.1579, 1.3684, 1.5789, 1.7895, 2.0000])
-
-weights = np.ones(3)
-powers = np.array([0, 1, 2])
-# powers = np.arrange(0, np.shape(x)[0])
-
-
-ones = np.ones_like(x)
-psi = np.array([x**2, x, ones]).T
-w = np.linalg.inv(psi.T@psi)@psi.T@f
-print(w)
-
-plt.figure(1)
-plt.scatter(x, f, c='b')
-
-x_vals = np.arange(start=-2, stop=2, step=0.1)
-y_vals = w[0]*x_vals**2 + w[1]*x_vals+w[2]
-plt.plot(x_vals, y_vals, c='g')
-
-plt.show()
-'''
 
 def getPsi(x):
     # 6 dim, quadratic model
-    Psi = np.array([1])
-    Psi = np.append(Psi,x[:])
-    Psi = np.append(Psi,x[0]*x[:])
-    Psi = np.append(Psi,x[1]*x[1:])
-    Psi = np.append(Psi,x[2]*x[2:])
-    Psi = np.append(Psi,x[3]*x[3:])
-    Psi = np.append(Psi,x[4]*x[4:])
-    Psi = np.append(Psi,x[5]*x[5])
-    Psi = np.expand_dims(Psi,axis=1)
-    # print(Psi)
-    # print(Psi.shape)
+    quadratic_cols = int(1+x.shape[1]+x.shape[1]*(x.shape[1]+1)/2)
+    Psi = np.zeros((x.shape[0],quadratic_cols))
+    for i in range(x.shape[0]):
+        Psi_new = np.array([1])
+        Psi_new = np.append(Psi_new,x[i,:])
+        Psi_new = np.append(Psi_new,x[i,0]*x[i,:])
+        Psi_new = np.append(Psi_new,x[i,1]*x[i,1:])
+        Psi_new = np.append(Psi_new,x[i,2]*x[i,2:])
+        Psi_new = np.append(Psi_new,x[i,3]*x[i,3:])
+        Psi_new = np.append(Psi_new,x[i,4]*x[i,4:])
+        Psi_new = np.append(Psi_new,x[i,5]*x[i,5])
+        Psi[i,:] = Psi_new
     return Psi
 
 def getSurrogate(xi,fi):
-    # fi_hat = []
-    wi = []
-    for i in range(xi.shape[0]):
-        Psi = getPsi(xi[i,:])
-        w = np.linalg.inv(Psi.T @ Psi) @ Psi.T * fi[i]
-        wi.append(w)
-        # fi_hat.append((w @ Psi)[0,0])
+    Psi = getPsi(xi)
+    w = np.linalg.inv(Psi.T @ Psi) @ Psi.T @ fi
     return w
 
 def fhat(x,*args):
-    w = args
-    return (w @ getPsi(x))[0,0]
+    w = args[0]
+    return (w @ getPsi(np.expand_dims(x,axis=0)).T)[0]
 
 
 if __name__ == '__main__':
-    kmax = 100
-    tau = 1e-1
-    
+    # Input Params
     xl = np.array([0.05,0.15,0.65,1.75,3,4.25])
     xu = np.array([0.25,0.4,0.85,2.25,3.25,4.75])
+    kmax = 20
+    tau = 5e-2
+    ns = 20
+
+    num_func_calls = 0
 
     # Sample 20 points
-    xi = np.random.uniform(low=xl, high=xu, size=(20,6))
+    xi = np.random.uniform(low=xl, high=xu, size=(ns,6))
     fi = []
     for i in range(xi.shape[0]):
         fi.append(wavedrag(xi[i,:]))
-    print(fi)
+        num_func_calls += 1
 
+    f_new = fi[0]
+    fhat_star = f_new - 1
     k = 0
-    while k < kmax:
-        wi = getSurrogate(xi,fi)
-        x = minimize(fhat,xi[0,:],args=wi)
+    # print("K:",k,"err:",((f_new - fhat_star) / f_new))
+    # while k < kmax and np.linalg.norm(f_new-fhat_star) > tau: #((f_new - fhat_star) / f_new) > tau:
+    while k < kmax and np.abs(((f_new - fhat_star) / f_new)) > tau:
+        # print("K:",k,"Coefficient of Drag Error:",((f_new - fhat_star) / f_new))
+        # print("Error:",np.linalg.norm(f_new-fhat_star))
+        w = getSurrogate(xi,fi)
+        x = minimize(fhat,xi[-1,:],args=w,bounds=Bounds(xl,xu,keep_feasible=True))
         x_star = x.x
-        fnew = x.fun
-        
+        fhat_star = x.fun
+        f_new = wavedrag(x_star)
+        num_func_calls += 1
+        xi = np.append(xi, np.expand_dims(x_star,axis=0), axis=0)
+        fi = np.append(fi, f_new)
+        k += 1
+        # print("After: K:",k,"err:",((f_new - fhat_star) / f_new))
+        # print("Post Error:",np.linalg.norm(f_new-fhat_star))
+        # print("------------------------------------------------------")
+
+    print("Surrogate-Optimized Minimum Drag:",fhat_star)
+    print("Surrogate-Optimized Number of Function Calls:",num_func_calls)
+
+
+    # Running optimization on actual function
+    x = minimize(wavedrag, xi[0,:], bounds=Bounds(xl,xu,keep_feasible=True))
+    print("Scipy Optimize Minimum Drag:",x.fun)
+    print("Scipy Optimize Number of Function Calls:",x.nfev)
+
+
