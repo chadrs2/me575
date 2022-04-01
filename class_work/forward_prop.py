@@ -25,6 +25,8 @@ def dg2(x):
 
 if __name__ == '__main__':
     x0 = np.array([0,0,0])
+
+    # Compute Deterministic Optimum
     cons = [
         {'type':'ineq','fun':g1},
         {'type':'ineq','fun':g2}
@@ -33,6 +35,9 @@ if __name__ == '__main__':
     print("Solution:",x)
     f_star = x.fun
     x_star = x.x
+
+
+    # Estimate Sigmas
     sigma_x = np.array([0.1, 0.1, 0.1])
     dG1 = dg1(x_star)
     dG2 = dg2(x_star)
@@ -48,8 +53,11 @@ if __name__ == '__main__':
     )
     print("Sigma_g1:",sigma_g1,"Sigma_g2:",sigma_g2)
     print()
-    # z = 3.891 # CDF of 0.9999
-    z = norm.ppf(0.9999)
+    
+
+    # Adjust Constraints and Re-optimize
+    # z = norm.ppf(0.9999) # CDF of 0.9999
+    z = 3.891
     g1_args = [z,sigma_g1]
     g2_args = [z,sigma_g2]
     cons_sigma = [
@@ -58,3 +66,13 @@ if __name__ == '__main__':
     ]
     x = minimize(f,x0,constraints=cons_sigma)
     print("Forward Propagation Solution:",x)
+
+    mean_x = x.x
+    num_itr = int(1e6)
+    fail_count = 0
+    for i in range(num_itr):
+        noise_x = np.random.normal(mean_x,sigma_x,size=3)
+        if g1(noise_x) < 0 or g2(noise_x) < 0:
+            fail_count += 1
+    print(fail_count,"failures out of",num_itr)
+    print("Reliability:",(1 - fail_count / num_itr) * 100,"%")
